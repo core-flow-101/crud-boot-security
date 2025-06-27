@@ -46,7 +46,7 @@
             <div class="col-lg-2 min-vh-100 ps-0 pe-0">
                 <nav class="sidebar nav flex-column">
                     <a class="nav-link mt-4" th:if="${not #lists.isEmpty(currentUser.roles.?[name == 'ROLE_ADMIN'])}" th:text="'Admin'" th:href="'/admin'"
-                       th:classappend="${#httpServletRequest.requestURI == '/admin'} ? 'active'"></a>
+                       th:classappend="${#httpServletRequest.requestURI.endsWith('/admin')} ? ' active'"></a>
                     <a class="nav-link mt-4" th:each="role : ${currentUser.roles}"
                        th:if="${role.name != 'ROLE_ADMIN'}"
                        th:text="${role.name == 'ROLE_USER' ? 'User' : 'Other'}"
@@ -73,15 +73,61 @@
                             <h4 class="bg-light text-dark p-3 mb-0 border  border-1 rounded">All users
                             </h4>
                             <div class="wrapper-table p-3 border border-1 rounded bg-white">
-                                <table class="table table-striped bg-white mb-0">
+                                <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 g-2">
+                                    <!-- Поиск -->
+                                    <div class="input-group input-group-sm w-auto">
+                                        <input type="text" id="searchInput" class="form-control" placeholder="Search" oninput="applyFilters()">
+                                        <button
+                                                class="btn btn-primary btn-sm"
+                                                type="button"
+                                                onclick="applyFilters()"
+                                        >Search</button>
+                                    </div>
+
+                                    <select id="roleFilter" class="form-select form-select-sm w-25" onchange="applyFilters()">
+                                        <option value="">All roles</option>
+                                        <option value="USER">USER</option>
+                                        <option value="ADMIN">ADMIN</option>
+                                    </select>
+
+                                    <select id="deptFilter" class="form-select form-select-sm w-25" onchange="applyFilters()">
+                                        <option value="">All departments</option>
+                                        <option value="HR">HR</option>
+                                        <option value="IT">IT</option>
+                                        <option value="SALE">SALE</option>
+                                    </select>
+
+                                    <!-- Сортировка -->
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button
+                                                class="btn btn-outline-primary me-1"
+                                                type="button"
+                                                onclick="sortTable(1, false)"
+                                        >Sort First</button>
+                                        <button
+                                                class="btn btn-outline-primary me-1"
+                                                type="button"
+                                                onclick="sortTable(2, false)"
+                                        >Sort Last</button>
+                                        <button
+                                                class="btn btn-outline-primary"
+                                                type="button"
+                                                onclick="sortTable(4, true)"
+                                        >Sort Age</button>
+                                    </div>
+                                </div>
+
+                                <table id="userTable" class="table table-striped bg-white mb-0">
 
                                     <thead>
                                     <tr>
                                         <th scope="col">ID</th>
                                         <th scope="col">First Name</th>
                                         <th scope="col">Last Name</th>
-                                        <th scope="col">Age</th>
+                                        <th scope="col">Middle Name</th>
+                                        <th scope="col">Birthday</th>
                                         <th scope="col">Email</th>
+                                        <th scope="col">Department</th>
                                         <th scope="col">Role</th>
                                         <th scope="col">Edit</th>
                                         <th scope="col">Delete</th>
@@ -92,8 +138,10 @@
                                         <td th:utext="${user.id}"></td>
                                         <td th:utext="${user.username}"></td>
                                         <td th:utext="${user.surname}"></td>
-                                        <td th:utext="${user.age}"></td>
+                                        <td th:utext="${user.middleName}"></td>
+                                        <td th:utext="${user.birthday}"></td>
                                         <td th:utext="${user.email}"></td>
+                                        <td th:utext="${user.department.name}"></td>
                                         <td>
                                             <ul style="list-style: none; padding: 0;">
                                                 <li th:if="${not #lists.isEmpty(user.roles.?[name == 'ROLE_ADMIN'])}"
@@ -107,8 +155,23 @@
                                         </td>
                                         <td>
 
-                                            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                                                    data-bs-target="#editModal">Edit</button>
+                                            <button
+                                                    type="button"
+                                                    class="btn btn-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#editModal"
+                                                    th:attr="
+                                                        data-user-id=${user.id},
+                                                        data-user-username=${user.username},
+                                                        data-user-surname=${user.surname},
+                                                        data-user-middle-name=${user.middleName},
+                                                        data-user-birthday=${user.birthday},
+                                                        data-user-email=${user.email},
+                                                        data-user-department=${user.department != null ? user.department.name : ''},
+                                                        data-user-photo=${user.photoBase64}
+                                                    ">
+                                                Edit
+                                            </button>
                                             <div class="modal fade" id="editModal" tabindex="-1">
                                                 <div class=" modal-dialog">
                                                     <div class="modal-content">
@@ -118,55 +181,65 @@
                                                                     data-bs-dismiss="modal"
                                                                     aria-label="Close"></button>
                                                         </div>
-                                                        <form th:method="PATCH" id="edit-user-form"
-                                                              th:action="@{/admin/update}" class="modal-body d-flex flex-column  justify-content-center
-                                                                align-items-center" th:object="${user}">
-                                                            <label for="editId" class="form-label fw-bold mb-0">ID
-                                                            </label>
-                                                            <input type="text" class="form-control w-50" id="editId"
-                                                                    name="id" readonly/>
+                                                        <form
+                                                                th:action="@{/admin/update}"
+                                                                method="post"
+                                                                enctype="multipart/form-data"
+                                                                id="edit-user-form"
+                                                                class="modal-body d-flex flex-column justify-content-center align-items-center"
+                                                        >
+                                                            <input type="hidden" name="_method" value="patch"/>
 
+                                                            <label for="editId" class="form-label fw-bold mb-0">ID</label>
+                                                            <input type="text" id="editId" name="id" class="form-control w-50" readonly/>
 
-                                                            <label for="editFirstName"
-                                                                   class="form-label fw-bold mb-0 mt-3">First Name
-                                                            </label>
-                                                            <input type="text" class="form-control w-50"
-                                                                   id="editFirstName" name="username" >
+                                                            <label for="editFirstName" class="form-label fw-bold mb-0 mt-3">First Name</label>
+                                                            <input type="text" id="editFirstName" name="username" class="form-control w-50" required/>
 
+                                                            <label for="editLastName" class="form-label fw-bold mt-3 mb-0">Last name</label>
+                                                            <input type="text" id="editLastName" name="surname" class="form-control w-50" required/>
 
-                                                            <label for="editLastName"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Last
-                                                                name</label>
-                                                            <input type="text" class="form-control w-50"
-                                                                   id="editLastName"  name="surname" >
+                                                            <label for="editMiddleName" class="form-label fw-bold mt-3 mb-0">Middle Name</label>
+                                                            <input type="text" id="editMiddleName" name="middleName" class="form-control w-50" required/>
 
-                                                            <label for="editAge" class="form-label fw-bold  mt-3 mb-0">Age</label>
-                                                            <input type="number" class="form-control w-50" id="editAge"
-                                                                   name="age" >
+                                                            <label for="editBirthday" class="form-label fw-bold mt-3 mb-0">Birthday</label>
+                                                            <input type="date" id="editBirthday" name="birthday" class="form-control w-50" required/>
 
-                                                            <label for="editEmail"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Email</label>
-                                                            <input type="email" class="form-control w-50"
-                                                                   id="editEmail" name="email" >
+                                                            <label for="editEmail" class="form-label fw-bold mt-3 mb-0">Email</label>
+                                                            <input type="email" id="editEmail" name="email" class="form-control w-50" required/>
 
-                                                            <label for="editPassword"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Password</label>
-                                                            <input type="password" class="form-control w-50"
-                                                                   id="editPassword" name="password">
-
-                                                            <label for="editRole"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Role</label>
-                                                            <select class="form-select w-50 " id="editRole" size="2"
-                                                                    aria-label="size 2 select example"
-                                                                    name="updatedRole">
-                                                                <option th:each="role: ${allRoles}" th:text="${role.name == 'ROLE_USER' ? 'USER' : 'ADMIN'}"></option>
+                                                            <label for="editDepartment" class="form-label fw-bold mt-3 mb-0">Department</label>
+                                                            <select id="editDepartment" name="department" size="3" class="form-select w-50" aria-label="size 2 select example" required>
+                                                                <option
+                                                                        th:each="dep : ${allDepartments}"
+                                                                        th:value="${dep.name}"
+                                                                        th:text="${dep.name}">
+                                                                </option>
                                                             </select>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary"
-                                                                        data-bs-dismiss="modal">Close
-                                                                </button>
-                                                                <button type="submit" class="btn btn-primary">Edit
-                                                                </button>
+
+                                                            <label class="form-label fw-bold mt-3 mb-0">Photo</label>
+                                                            <div class="w-50 mb-2 d-flex justify-content-center">
+                                                                <img id="userPhotoPreview" src="../static/images/user-avo.png" alt="User Photo"
+                                                                     class="img-fluid rounded-circle"
+                                                                     style="max-height:150px; max-width:150px;"/>
+                                                            </div>
+                                                            <input type="file" id="editPhoto" name="photo" accept="image/*" class="form-control w-50" style="max-height:150px; max-width:150px;"/>
+
+                                                            <label for="editPassword" class="form-label fw-bold mt-3 mb-0">Password</label>
+                                                            <input type="password" id="editPassword" name="password" class="form-control w-50" required/>
+
+                                                            <label for="editRole" class="form-label fw-bold mt-3 mb-0">Role</label>
+                                                            <select id="editRole" name="updatedRole" size="2" class="form-select w-50" aria-label="size 2 select example" required>
+                                                                <option
+                                                                        th:each="role : ${allRoles}"
+                                                                        th:value="${role.name}"
+                                                                        th:text="${role.name == 'ROLE_USER' ? 'USER' : 'ADMIN'}"
+                                                                ></option>
+                                                            </select>
+
+                                                            <div class="modal-footer mt-4 w-100">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                                <button type="submit" class="btn btn-primary">Save changes</button>
                                                             </div>
                                                         </form>
 
@@ -189,48 +262,63 @@
                                                                     data-bs-dismiss="modal"
                                                                     aria-label="Close"></button>
                                                         </div>
-                                                        <form th:object="${user}" th:method="DELETE"
-                                                              th:action="@{/admin/delete}" class="modal-body d-flex flex-column  justify-content-center
-                                                            align-items-center">
+                                                        <form th:action="@{/admin/delete/{id}(id=${user.id})}"
+                                                              method="post"
+                                                              class="modal-body d-flex flex-column justify-content-center align-items-center">
 
-                                                            <label for="inputId" class="form-label fw-bold mb-0">ID
-                                                            </label>
-                                                            <input type="text" class="form-control w-50"
-                                                                   id="inputId" th:value="${user.id}" name="deleteUserId" readonly>
+                                                            <input type="hidden" name="_method" value="delete"/>
+                                                            <div class="mb-3 text-center">
+                                                                <img th:if="${user.photoBase64}"
+                                                                     th:src="'data:image/jpeg;base64,' + ${user.photoBase64}"
+                                                                     alt="User photo"
+                                                                     class="img-fluid rounded-circle"
+                                                                     style="max-height:150px; max-width:150px;"/>
+                                                                <p th:if="${user.photoBase64 == null}" class="text-muted">No photo available</p>
+                                                            </div>
+                                                            <label for="inputId" class="form-label fw-bold mb-0">ID</label>
+                                                            <input type="text" id="inputId" name="id"
+                                                                   class="form-control w-50" th:value="${user.id}" readonly>
 
-                                                            <label for="inputFirstName"
-                                                                   class="form-label fw-bold mb-0 mt-3">First
-                                                            </label>
-                                                            <input type="text" class="form-control w-50"
-                                                                   id="inputFirstName" th:value="${user.username}" readonly>
+                                                            <label for="inputFirstName" class="form-label fw-bold mb-0 mt-3">First name</label>
+                                                            <input type="text" id="inputFirstName" name="username"
+                                                                   class="form-control w-50" th:value="${user.username}" readonly>
 
-                                                            <label for="inputLastName"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Last
-                                                                name</label>
-                                                            <input type="text" class="form-control w-50"
-                                                                   id="inputLastName" th:value="${user.surname}" readonly>
+                                                            <label for="inputLastName" class="form-label fw-bold mt-3 mb-0">Last name</label>
+                                                            <input type="text" id="inputLastName" name="surname"
+                                                                   class="form-control w-50" th:value="${user.surname}" readonly>
 
-                                                            <label for="inputAge" class="form-label fw-bold  mt-3 mb-0">Age</label>
-                                                            <input type="text" class="form-control w-50" id="inputAge" th:value="${user.age}" readonly>
+                                                            <label for="inputMiddleName" class="form-label fw-bold mt-3 mb-0">Middle Name</label>
+                                                            <input type="text" id="inputMiddleName" name="middleName"
+                                                                   class="form-control w-50" th:value="${user.middleName}" readonly>
 
-                                                            <label for="inputEmail"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Email</label>
-                                                            <input type="text" class="form-control w-50"
-                                                                   id="inputEmail" th:value="${user.email}" readonly>
+                                                            <label for="inputBirthday" class="form-label fw-bold mt-3 mb-0">Birthday</label>
+                                                            <input type="date" id="inputBirthday" name="birthday"
+                                                                   class="form-control w-50" th:value="${user.birthday}" readonly>
 
+                                                            <label for="inputEmail" class="form-label fw-bold mt-3 mb-0">Email</label>
+                                                            <input type="email" id="inputEmail" name="email"
+                                                                   class="form-control w-50" th:value="${user.email}" readonly>
 
-                                                            <label for="inputRole"
-                                                                   class="form-label fw-bold  mt-3 mb-0">Password</label>
-                                                            <select class="form-select w-50" id="inputRole" size="2"
-                                                                    aria-label="size 2 select example" disabled>
-                                                                <option th:each="role: ${allRoles}" th:text="${role.name == 'ROLE_USER' ? 'USER' : 'ADMIN'}"></option>
+                                                            <label for="inputDepartment" class="form-label fw-bold mt-3 mb-0">Department</label>
+                                                            <input type="text" id="inputDepartment" name="department"
+                                                                   class="form-control w-50"
+                                                                   th:value="${user.department != null ? user.department.name : ''}"
+                                                                   readonly>
+
+                                                            <label for="inputRoles" class="form-label fw-bold mt-3 mb-0">Roles</label>
+
+                                                            <select id="inputRoles" name="roles"
+                                                                    class="form-select w-50" multiple disabled>
+                                                                <option th:each="role : ${user.roles}"
+                                                                        th:text="${role.name == 'ROLE_USER' ? 'USER' : 'ADMIN'}">
+                                                                </option>
                                                             </select>
+
                                                             <div class="modal-footer">
                                                                 <button type="button" class="btn btn-secondary"
                                                                         data-bs-dismiss="modal">Close
                                                                 </button>
-                                                                <button type="submit" class="btn btn-danger">Delete
-                                                                </button>
+                                                                <button type="submit" class="btn btn-danger">Delete</button>
                                                             </div>
                                                         </form>
 
@@ -247,38 +335,51 @@
 
                         </div>
                         <div class="tab-pane fade" id="new-user">
-                            <h4 class="bg-light text-dark p-3 mb-0 border  border-1 rounded">Add new user
-                            </h4>
+                            <h4 class="bg-light text-dark p-3 mb-0 border border-1 rounded">Add new user</h4>
 
-                            <form th:method="POST" th:action="@{/admin/new}" th:object="${newUser}" class="wrapper-table p-3 border border-1 rounded bg-white d-flex flex-column  justify-content-center
-                                align-items-center">
+                            <form th:method="POST" th:action="@{/admin/new}" class="wrapper-table p-3 border border-1 rounded bg-white d-flex flex-column justify-content-center align-items-center" enctype="multipart/form-data">
+
                                 <label for="inputFirstName" class="form-label fw-bold mb-0">First name</label>
-                                <input type="text" class="form-control w-25" id="inputFirstName"
-                                       placeholder="First name" th:name="*{username}" th:field="*{username}">
+                                <input type="text" class="form-control w-25" id="inputFirstName" name="username" placeholder="First name" required>
 
-                                <label for="inputLastName" class="form-label fw-bold  mt-3 mb-0">Last name</label>
-                                <input type="text" class="form-control w-25" id="inputLastName"
-                                       placeholder="Last name" th:name="*{surname}" th:field="*{surname}">
+                                <label for="inputLastName" class="form-label fw-bold mt-3 mb-0">Last name</label>
+                                <input type="text" class="form-control w-25" id="inputLastName" name="surname" placeholder="Last name" required>
 
-                                <label for="inputAge" class="form-label fw-bold  mt-3 mb-0">Age</label>
-                                <input type="text" class="form-control w-25" id="inputAge" placeholder="Age"
-                                       th:name="*{age}" th:field="*{age}">
+                                <label for="inputMiddleName" class="form-label fw-bold mt-3 mb-0">Middle Name</label>
+                                <input type="text" class="form-control w-25" id="inputMiddleName" name="middleName" placeholder="Middle Name" required>
 
-                                <label for="inputEmail" class="form-label fw-bold  mt-3 mb-0">Email</label>
-                                <input type="text" class="form-control w-25" id="inputEmail" placeholder="Email"
-                                       th:name="*{email}" th:field="*{email}">
+                                <label for="inputBirthday" class="form-label fw-bold mt-3 mb-0">Birthday</label>
+                                <input type="date" class="form-control w-25" id="inputBirthday" name="birthday" placeholder="Birthday" required>
 
-                                <label for="inputPassword" class="form-label fw-bold  mt-3 mb-0">Password</label>
-                                <input type="password" class="form-control w-25" id="inputPassword"
-                                       placeholder="Password" th:name="*{password}" th:field="*{password}">
-
-
-                                <label for="inputRole" class="form-label fw-bold  mt-3 mb-0">Role</label>
-                                <select class="form-select w-25 " id="inputRole" size="2"
+                                <label for="inputDepartment" class="form-label fw-bold mt-3 mb-0">Department</label>
+                                <select
+                                        id="inputDepartment"
+                                        name="department"
+                                        size="3"
+                                        class="form-select w-25"
                                         aria-label="size 2 select example"
-                                        name="selectedRole">
-                                    <option th:each="role : ${allRoles}" th:text="${role.name == 'ROLE_USER' ? 'USER' : 'ADMIN'}"></option>
+                                        required
+                                >
+                                    <option
+                                            th:each="dep : ${allDepartments}"
+                                            th:value="${dep.name}"
+                                            th:text="${dep.name}">
+                                    </option>
                                 </select>
+
+                                <label for="inputEmail" class="form-label fw-bold mt-3 mb-0">Email</label>
+                                <input type="text" class="form-control w-25" id="inputEmail" name="email" placeholder="Email" required>
+
+                                <label for="inputPassword" class="form-label fw-bold mt-3 mb-0">Password</label>
+                                <input type="password" class="form-control w-25" id="inputPassword" name="password" placeholder="Password" required>
+
+                                <label for="inputRole" class="form-label fw-bold mt-3 mb-0">Role</label>
+                                <select class="form-select w-25" id="inputRole" size="2" name="selectedRole" required>
+                                    <option th:each="role : ${allRoles}" th:value="${role.name}" th:text="${role.name == 'ROLE_USER' ? 'USER' : 'ADMIN'}"></option>
+                                </select>
+
+                                <label for="inputPhoto" class="form-label fw-bold mt-3 mb-0">Photo</label>
+                                <input type="file" class="form-control w-25" id="inputPhoto" name="photo" accept="image/*" required>
 
                                 <button type="submit" class="btn btn-success mt-3">Add new user</button>
                             </form>
@@ -296,36 +397,9 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
         crossorigin="anonymous"></script>
-<script>
-    const editModal = document.getElementById('editModal');
-    editModal.addEventListener('show.bs.modal', function (event) {
-        const button = event.relatedTarget;
-        const parent = button.parentElement.parentElement;
-
-        const rows = parent.querySelectorAll("td");
-        let id, firstName, lastName, age, email;
-        id = rows[0];
-        firstName = rows[1];
-        lastName = rows[2];
-        age = rows[3];
-        email = rows[4];
-
-
-        const modalUserId = editModal.querySelector('#editId');
-        const modalUserFirstName = editModal.querySelector('#editFirstName');
-        const modalUserLastName = editModal.querySelector('#editLastName');
-        const modalUserEmail = editModal.querySelector('#editEmail');
-        const modalUserAge = editModal.querySelector('#editAge');
-
-        modalUserId.value = id.innerText;
-        modalUserFirstName.value = firstName.innerText;
-        modalUserLastName.value = lastName.innerText;
-        modalUserEmail.value = email.innerText;
-        modalUserAge.value = age.innerText;
-
-
-    })
-</script>
+<script th:src="@{/scripts/fill_edit_modal.js}"></script>
+<script th:src="@{/scripts/sort.js}"></script>
+<script th:src="@{/scripts/search.js}"></script>
 </body>
 
 </html>

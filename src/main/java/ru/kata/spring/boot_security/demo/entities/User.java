@@ -1,9 +1,16 @@
 package ru.kata.spring.boot_security.demo.entities;
 
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.multipart.MultipartFile;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -12,36 +19,59 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
+import javax.persistence.Lob;
 import javax.persistence.ManyToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
+import javax.persistence.Transient;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "user")
+@Table(name = "users")
+@Getter
+@Setter
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class User implements org.springframework.security.core.userdetails.UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "name")
+
+    @Column(name = "name", unique = true)
     private String username;
 
     @Column(name = "surname")
     private String surname;
 
-    @Column(name = "age")
-    private int age;
+    @Column(name = "middle_name")
+    private String middleName;
+
+    @Column(name = "birthday")
+    private LocalDate birthday;
 
     @Column(name = "email")
     private String email;
 
+    @OneToOne
+    @JoinColumn(name = "department_id")
+    private Department department;
+
+    @Lob
+    @Column(name = "photo")
+    private byte[] photo;
+
+    @Transient
+    private String photoBase64;
+
     @Column(name = "password")
     private String password;
 
-
-
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.EAGER, cascade = { CascadeType.MERGE, CascadeType.PERSIST })
     @JoinTable(
             name = "user_role",
             joinColumns = @JoinColumn(name = "user_id"),
@@ -49,9 +79,6 @@ public class User implements org.springframework.security.core.userdetails.UserD
     )
     private Set<Role> roles;
 
-
-    public User() {
-    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -78,64 +105,6 @@ public class User implements org.springframework.security.core.userdetails.UserD
         return true;
     }
 
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getSurname() {
-        return surname;
-    }
-
-    public void setSurname(String surname) {
-        this.surname = surname;
-    }
-
-    public Integer getAge() {
-        return age;
-    }
-
-    public void setAge(Integer age) {
-        this.age = age;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-
-    public Set<Role> getRoles() {
-        return roles;
-    }
-
-    public void setRoles(Set<Role> roles) {
-        this.roles = roles;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-
 
     private Collection<? extends GrantedAuthority> mapRolesToAuthorities(Collection<Role> roles) {
         return roles.stream().map(role -> new SimpleGrantedAuthority(role.getName())).collect(Collectors.toSet());
@@ -147,9 +116,11 @@ public class User implements org.springframework.security.core.userdetails.UserD
                 "id=" + id +
                 ", username='" + username + '\'' +
                 ", surname='" + surname + '\'' +
-                ", age=" + age +
+                ", middleName='" + middleName + '\'' +
+                ", birthday=" + birthday +
                 ", email='" + email + '\'' +
                 ", password='" + password + '\'' +
+                ", roles=" + roles +
                 '}';
     }
 }

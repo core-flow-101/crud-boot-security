@@ -51,7 +51,7 @@
                        th:if="${role.name != 'ROLE_ADMIN'}"
                        th:text="${role.name == 'ROLE_USER' ? 'User' : 'Other'}"
                        th:href="${role.name == 'ROLE_USER' ? '/user' : '/error'}"
-                       th:classappend="${#httpServletRequest.requestURI == '/user'} ? 'active'"></a>
+                       th:classappend="${#httpServletRequest.requestURI.endsWith('/user')} ? ' active'"></a>
                 </nav>
             </div>
             <div class="col-lg-10 bg-light">
@@ -69,8 +69,10 @@
                                     <th scope="col">ID</th>
                                     <th scope="col">First Name</th>
                                     <th scope="col">Last Name</th>
-                                    <th scope="col">Age</th>
+                                    <th scope="col">Middle Name</th>
+                                    <th scope="col">Birthday</th>
                                     <th scope="col">Email</th>
+                                    <th scope="col">Department</th>
                                     <th scope="col">Role</th>
 
                                 </tr>
@@ -80,8 +82,10 @@
                                     <td th:utext="${user.id}"></td>
                                     <td th:utext="${user.username}"></td>
                                     <td th:utext="${user.surname}"></td>
-                                    <td th:utext="${user.age}"></td>
+                                    <td th:utext="${user.middleName}"></td>
+                                    <td th:utext="${user.birthday}"></td>
                                     <td th:utext="${user.email}"></td>
+                                    <td th:utext="${user.department.name}"></td>
                                     <td>
                                         <ul style="list-style: none; padding: 0;">
                                             <li th:if="${not #lists.isEmpty(user.roles.?[name == 'ROLE_ADMIN'])}" th:text="'ADMIN '" style="display: inline; margin-right: 5px;"></li>

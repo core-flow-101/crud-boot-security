@@ -1,0 +1,40 @@
+databaseChangeLog:
+  - changeSet:
+      id: populate-department
+      author: misha
+      changes:
+        - insert:
+            tableName: department
+            columns:
+              - column:
+                  name: name
+                  value: HR
+        - insert:
+            tableName: department
+            columns:
+              - column:
+                  name: name
+                  value: IT
+        - insert:
+            tableName: department
+            columns:
+              - column:
+                  name: name
+                  value: SALE
+
+  - changeSet:
+      id: populate-role
+      author: misha
+      changes:
+        - insert:
+            tableName: role
+            columns:
+              - column:
+                  name: role_name
+                  value: ROLE_USER
+        - insert:
+            tableName: role
+            columns:
+              - column:
+                  name: role_name
+                  value: ROLE_ADMIN
