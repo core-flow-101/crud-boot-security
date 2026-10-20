@@ -14,6 +14,7 @@ public class RoleServiceImpl implements RoleService {
 
     @Autowired
     public RoleServiceImpl(RoleRepository roleRepository) {
+        System.out.println("123");
         this.roleRepository = roleRepository;
     }
 
